@@ -1,0 +1,65 @@
+aspect Helper {
+	// simply add a parameter by key and value
+	syn Element Element.addSimpleParameter(String k, String v) {
+		Parameter p = new Parameter(k, v);
+		this.getParameters().add(p);
+		return this;
+	}
+
+	// returns the parameter with key
+	syn Parameter Element.getParameterByKey(String s) {
+		for (Parameter p : this.getParameters()) {
+			if (p.getKey().equals(s)) {
+				return p;
+			}
+		}
+		return null;
+	}
+
+	// returns a grgen identifier either ::name or @("$12")
+	syn String Element.getId() {
+		if (getParameterByKey("$") != null) {
+			return "@("+getParameterByKey("$").getValue()+")";
+		}
+		if (!this.getName().isEmpty()) {
+			return "::"+this.getName();
+		}
+		return null;
+	}
+
+	// returns a grgen identifier but simpler either name or $12
+	syn String Element.getPlainId() {
+		if (getParameterByKey("$") != null) {
+			return getParameterByKey("$").getValueWithoutQuotes();
+		}
+		if (!this.getName().isEmpty()) {
+			return this.getName();
+		}
+		return null;
+	}
+
+	// returns the label (currently in the metamodel named id)
+	syn String Element.getLabel() {
+		if (getParameterByKey("id") != null) {
+			return getParameterByKey("id").getValueWithoutQuotes();
+		}
+		return null;
+	}
+
+	syn String Parameter.getValueWithoutQuotes() {
+		return this.getValue().replaceAll("^\"|\"$", "");
+	}
+
+	// setting nodes
+	syn Boolean Arc.setFromNode(Node n) {
+		String s = n.getId();
+		this.setFrom(s);
+		return s != null;
+	}
+	syn Boolean Arc.setToNode(Node n) {
+		String s = n.getId();
+		this.setTo(s);
+		return s != null;
+	}
+
+}

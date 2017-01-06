@@ -1,0 +1,267 @@
+rule pdFlattenAll() {
+	iterated {
+		pn:PetriNet;
+		modify {
+			exec(pdFlatten(pn));
+		}
+	}
+}
+rule pdFlatten(pn:PetriNet) {
+	modify {
+		exec(dynr::Flatten());
+		exec(macror::Flatten());
+		// when a page has no MacroPlace, it will not be replaced
+		// macro::entrynode and macro::exitnode are specific to this model and I want this removed at the end
+		// it is possible that the designer linked directly to the pages
+		exec(macror::ConvertRemaingingPages()*);
+		exec(macror::RemoveEntryExitArcs()*);
+	}
+}
+
+// TODO this is not dyn-specific
+rule MergeAllPetrinets() {
+	pn1:PetriNet;
+	iterated {
+		pn2:PetriNet;
+		modify {
+			exec(ComposePetrinets(pn1, pn2));
+		}
+	}
+}
+
+
+package dynr {
+
+rule Flatten() {
+	modify {
+		exec(FlattenMacroPlace()*);
+		exec(FlattenMacroTransition()*);
+	}
+}
+
+rule FlattenMacroPlace() {
+	-:dyn::pagearc-> net:Page;
+	net -entryE:macro::entrynode-> entryP:Place;
+	net -:macro::exitnode-> exitP:Place;
+	modify {
+		readyP:Place -:outArc-> enabledT:Transition -:inArc-> entryP;
+		net -entryE->! readyP; // ! redirects the edge
+		disabledT:Transition -:inArc-> exitP;
+		readyP -:outArc-> disabledT;
+		exec(dynr::ConnectConfPlace(net, enabledT, disabledT)*);
+
+		net -:places-> readyP;
+		net -:transitions-> enabledT;
+		net -:transitions-> disabledT;
+		// naming
+		eval{ readyP.id = net.id + "_ready"; }
+		eval{ disabledT.id = net.id + "_disabled"; }
+		eval{ enabledT.id = net.id + "_enabled"; }
+	}
+}
+
+rule FlattenMacroTransition() {
+	-e:dyn::pagearc-> mt:Page;
+	mt -entryE:macro::entrynode-> entryT:Transition;
+	mt -exitE:macro::exitnode-> exitT:Transition;
+	modify {
+		readyT:Transition -:inArc-> readyP:Place -:outArc-> entryT;
+		mt -entryE->! readyT;
+		readyP -:outArc-> disabledT:Transition -:inArc-> endP:Place -:outArc-> endT:Transition;
+		exitT -:inArc-> endP;
+		mt -exitE->! endT;
+		exec(dynr::ConnectConfPlace(mt, entryT, disabledT)*);
+		// bookkeeping
+		mt -:places-> readyP;
+		mt -:transitions-> readyT;
+		mt -:transitions-> disabledT;
+		mt -:places-> endP;
+		mt -:transitions-> endT;
+
+		eval{ readyP.id = mt.id + "_ready"; }
+		eval{ readyT.id = mt.id + "_ready"; }
+		eval{ disabledT.id = mt.id + "_disabled"; }
+		eval{ endP.id = mt.id + "_end"; }
+		eval{ endT.id = mt.id + "_end"; }
+	}
+}
+
+rule ConnectConfPlace(net:Page, enableT:Transition, disableT:Transition) {
+	confP:Place -e:dyn::pagearc-> net;
+	alternative {
+		e {
+			-:dyn::enablepage<e>->;
+			modify {
+				confP -:outArc-> enableT;
+				confP <-:inArc- enableT;
+				confP -:inhibitorArc-> disableT;
+				delete(e);
+			}
+		}
+		d {
+			-:dyn::disablepage<e>->;
+			modify {
+				confP -:outArc-> disableT;
+				confP <-:inArc- disableT;
+				confP -:inhibitorArc-> enableT;
+				delete(e);
+			}
+		}
+	}
+}
+
+} // end of package dynr
+
+
+
+package macror {
+// one rule for multiple subpages - will multiply the macro-node so that each macro-node has just one subpage
+// replacing macro transitions is complicated as we have to prepend it with a place and transition
+rule MultiSubpageReplacement() {
+	modify {
+		exec(MultiSubpageReplacementPlace()*);
+		exec(MultiSubpageReplacementTransition()*);
+	}
+}
+
+rule MultiSubpageReplacementPlace() {
+	mp:macro::MacroPlace -s1:macro::subpage-> n1:Page;
+	mp -s2:macro::subpage-> n2:Page;
+	modify {
+		emit("MultiSubpageReplacementPlace",mp," ",mp.id,"\n");
+		mp2:copy<mp>;
+		exec(copyArcs(mp, mp2));
+		exec(RemovePageArc(mp2)*);
+		exec(ConnectPage(s2, mp2));
+		// not needed because of copyArcs
+		// exec(ConnectSamePage(mp2, mp));
+	}
+}
+
+rule MultiSubpageReplacementTransition() {
+	net:Page -:transitions-> mt:macro::MacroTransition;
+	mt -s1:macro::subpage-> n1:Page;
+	mt -s2:macro::subpage-> n2:Page;
+	modify {
+		emit("MultiSubpageReplacementTransition",mt," ",mt.id,"\n");
+		mt2:copy<mt>;
+		exec(copyArcs(mt, mt2));
+		exec(RemovePageArc(mt2)*);
+		exec(ConnectPage(s2, mt2));
+		// not needed because of copyArcs
+		// exec(ConnectSamePage(mt2, mt));
+	}
+}
+
+rule ConnectPage(-s2:macro::subpage->, mn:macro::MacroNode) {
+	modify { mn !-s2->; }
+}
+
+rule RemovePageArc(p:NIdent) {
+	p -e:macro::subpage->;
+	modify { delete(e); }
+}
+
+rule Flatten() {
+	modify {
+		exec(MultiSubpageReplacement());
+		exec(CopyMultiReferencedPages()*);
+		exec(FlattenMacroNode()*);
+	}
+}
+
+rule CopyMultiReferencedPages() {
+	net:Page;
+	mn1:macro::MacroNode -e1:macro::subpage-> net;
+	mn2:macro::MacroNode -e2:macro::subpage-> net;
+	modify {
+		exec((newNode:Node) = copySubgraph(net, map<Node, Node>{})
+			| connectMacroNode(mn2, e2, newNode) // connect it to the PetriNet and redirect edge e2
+		);
+	}
+}
+
+rule connectMacroNode(mn:macro::MacroNode, -e:macro::subpage->, n:Node) {
+	pn:PetriNet -:pages-> mn;
+	modify {
+		delete(e);
+		pn -:pages-> n;
+		mn -:macro::subpage-> n;
+	}
+}
+
+rule FlattenMacroNode() {
+	topnet:Page -:Edge-> mp:NIdent; // -:places-> or -:transitions->
+	if {typeof(mp) >= macro::MacroNode;}
+	mp -:macro::subpage-> net:Page;
+	net -entryE:macro::entrynode-> sp:NIdent;
+	net -exitE:macro::exitnode-> ep:NIdent;
+	modify {
+		eval{
+			sp.id = mp.id + "_" + sp.id;
+			ep.id = mp.id + "_" + ep.id;
+		}
+		exec(copyInArcsExclude(mp, sp, topnet));
+		exec(copyOutArcsExclude(mp, ep, net));
+
+		exec(moveFromPage(topnet, net));
+		exec(delete_node(mp));
+		delete(entryE);
+		delete(exitE);
+	}
+}
+
+rule ComposeAllMacroNodes() {
+	modify {
+		exec(ComposeAllMacroNodes2()* | RemoveMultiPagesFromPlace()*);
+	}
+}
+
+rule ComposeAllMacroNodes2() {
+	p1:NIdent;
+	p2:NIdent;
+	if {typeof(p1) == typeof(p2) && typeof(p1) == macro::MacroNode;}
+	if { p1.id == p2.id && p1.id != ""; }
+	net:Page -e1:transitions-> p1;
+	modify {
+		delete(e1);
+		emit("Found two nodes with the same id and type\n");
+		emit(p1.id + "  --  " + p2.id +"\n");
+		emit(p1, "  --  ", p2, "\n");
+		new_p:typeof(p1)<p1,p2>;
+		eval{new_p.id = p1.id;} // TODO is this needed?
+		emit("new node: ", new_p, "\n");
+		emit("Done\n");
+	}
+}
+
+rule RemoveMultiPagesFromPlace() {
+	mp:macro::MacroNode -e:macro::subpage-> page:Page;
+	mp -e2:macro::subpage-> page;
+	modify {
+		delete(e2);
+	}
+}
+
+rule ConvertRemaingingPages() {
+	net:Page;
+	alternative {
+		pp { x:macro::PageFromPlace<net>; modify{ :Page<x>; } } // convert to normal page
+		pt { x:macro::PageFromTransition<net>; modify{ :Page<x>; } } // convert to normal page
+	}
+	modify {
+		emit("Converted a remaining macro-page to a normal page (net: ",net.id,")\n");
+	}
+}
+
+rule RemoveEntryExitArcs() {
+	net:Page;
+	alternative {
+		en { net -e:macro::entrynode->; modify{ delete(e); } }
+		ex { net -e:macro::exitnode->; modify{ delete(e); } }
+	}
+	modify {
+		emit("Removed entry/exit arcs for net ",net.id,"\n");
+	}
+}
+}

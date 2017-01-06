@@ -1,0 +1,51 @@
+# This is a simple Petrinet
+
+new graph "Rules.grg"
+
+include ../petri/layout.grsi
+
+
+new pn:PetriNet($= "test", id="Petri Net")
+new net:Page(id="pn1")
+new pn -:pages-> net
+
+new p1:Place(id="p1")
+new net -:places-> p1
+new p2:Place(id="p2")
+new net -:places-> p2
+new p3:Place(id="p3")
+new net -:places-> p3
+new p4:Place(id="p4")
+new net -:places-> p4
+new p5:Place(id="p5")
+new net -:places-> p5
+
+new t1:Transition(id="t1")
+new net -:transitions-> t1
+new t2:Transition(id="t2")
+new net -:transitions-> t2
+new t3:Transition(id="t3")
+new net -:transitions-> t3
+new t4:Transition(id="t4")
+new net -:transitions-> t4
+
+
+new p1 -ina1:inhibitorArc(id="ina1")-> t1
+new p3 -:outArc-> t3
+new p4 -:outArc-> t4
+new t2 -:inArc-> p2
+new t1 -:inArc-> p5
+
+new tok:Token
+new p1-:tokens->tok
+
+new p1 -:outArc-> t2
+
+new t3 -:inArc->p1
+new t4 -:inArc->p1
+
+validate
+
+
+exec TransformMultiArcsToWeight()*
+debug exec Init(2) | ToPTNet()*

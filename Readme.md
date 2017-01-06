@@ -22,15 +22,12 @@ TODO
 
 # Installation
 
-* Install mono `brew install mono`
-* Download GrGen from http://GrGen.net
-	* add it to your PATH like this: `PATH="/Users/cmai/grgen/engine-net-2/bin:$PATH"`
-        * If it works you can run "GrShell"
+-   Install mono (e.g. `brew install mono`)
+-   Download GrGen from <http://GrGen.net>
+    		_ add it to your PATH like this: `PATH="/Users/cmai/grgen/engine-net-2/bin:$PATH"`
+          _ If it works you can run "GrShell"
 
 ### Modelchecker:
-- download: http://projects.laas.fr/tina/download.php
-	- add it to your path
-- install lola (http://download.gna.org/service-tech/lola/) or `brew install lola`
 
-
-
+-   Tina: <http://projects.laas.fr/tina/download.php>
+-   LoLa: <http://download.gna.org/service-tech/lola/> or `brew install lola`

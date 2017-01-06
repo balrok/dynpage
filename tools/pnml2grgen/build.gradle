@@ -1,0 +1,136 @@
+plugins {
+	id 'java'
+	id 'eclipse'
+	id 'antlr'
+	id 'application'
+    id 'com.github.johnrengelman.shadow' version '1.2.3' // builds a fat jar with shadowJar
+}
+
+sourceCompatibility = 1.7
+version = '1.1'
+mainClassName = 'run.Main'
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'PNML to GrGen',
+                   'Implementation-Version': version,
+		           'Main-Class': mainClassName
+    }
+}
+
+
+repositories {
+	mavenCentral()
+}
+
+configurations{ jastadd2 }
+
+dependencies {
+	compile group: 'fr.lip6.pnml', name: 'fr.lip6.pnml.framework.utils', version: '2.2.12'
+	compile group: 'fr.lip6.pnml', name: 'fr.lip6.pnml.framework.coremodel', version: '2.2.12'
+	compile group: 'fr.lip6.pnml', name: 'fr.lip6.pnml.framework.ptnet', version: '2.2.12'
+	compile group: 'fr.lip6.pnml', name: 'fr.lip6.pnml.framework.symmetricnet', version: '2.2.12'
+	compile group: 'fr.lip6.pnml', name: 'fr.lip6.pnml.framework.hlpn', version: '2.2.12'
+	compile group: 'fr.lip6.pnml', name: 'fr.lip6.pnml.framework.pthlpng', version: '2.2.12'
+
+	compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.4'
+
+	antlr "org.antlr:antlr4:4.5.3"
+	compile group: 'org.antlr', name: 'antlr4', version: '4.5.3'
+	jastadd2 group: 'org.jastadd', name: 'jastadd', version: '2.2.1'
+
+
+	// TODO these dependencies come from pnml - how could this be done automatically?
+	compile group: 'org.eclipse.emf', name: 'org.eclipse.emf.common', version: '2.10.1'
+	compile group: 'org.eclipse.emf', name: 'org.eclipse.emf.ecore', version: '2.10.1'
+	compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.21'
+	compile group: 'org.apache.ws.commons.axiom', name: 'axiom-impl', version: '1.2.19'
+	compile group: 'com.thaiopensource', name: 'jing', version: '20091111'
+	testCompile 'org.testng:testng:6.1.1'
+}
+
+
+run {
+	 if ( project.hasProperty("appArgs") ) {
+		args Eval.me(appArgs)
+	 } else {
+		args "buffer_pages.pnml"
+	 }
+}
+
+
+
+generateGrammarSource {
+	arguments += ["-package", "parser", "-visitor"]
+	doLast {
+		copy {
+			from 'build/generated-src/antlr/main/'
+				include '*.*'
+				into 'build/generated-src/antlr/main/parser'
+		}
+		project.delete fileTree('build/generated-src/antlr/main').include('*.*')
+	}
+}
+
+test {
+	include '**/*Test.class'
+	useTestNG()
+	testLogging.showStandardStreams = true
+
+	beforeTest { descriptor ->
+		logger.lifecycle("Running test: " + descriptor)
+	}
+}
+
+sourceSets {
+	main {
+		java {
+			srcDir "${buildDir}/generated-src/jastadd/"
+		}
+	}
+}
+
+task genJastAdd(type:DefaultTask) {
+	FileTree specFiles = fileTree('src/main') {
+		include '**/Grsi*.ast'
+		include '**/Grsi*.jrag'
+		include '**/Grsi*.jadd'
+	}
+	String packagename = "jgrsi"
+
+	File dir = new File("${buildDir}/generated-src/jastadd/")
+	dir.mkdirs()
+
+	// no need to touch this:
+	ant.taskdef(name: "jastadd", classname: "org.jastadd.JastAddTask",
+			classpath: configurations.jastadd2.asPath) { }
+
+	ant.jastadd(
+			package: packagename,
+			outdir: dir,
+			defaultMap: "new org.jastadd.util.RobustMap(new java.util.HashMap())") {
+				specFiles.addToAntBuilder(ant, "fileset", FileCollection.AntType.FileSet)
+	}
+
+	// second jastadd
+
+	FileTree specFilesNet = fileTree('src/main') {
+		include '**/Net*.ast'
+		include '**/Net*.jrag'
+		include '**/Net*.jadd'
+	}
+	String packagenameNet = "jnet"
+
+	// no need to touch this:
+	ant.taskdef(name: "jastadd", classname: "org.jastadd.JastAddTask",
+			classpath: configurations.jastadd2.asPath) { }
+
+	ant.jastadd(
+			package: packagenameNet,
+			outdir: dir,
+			defaultMap: "new org.jastadd.util.RobustMap(new java.util.HashMap())") {
+				specFilesNet.addToAntBuilder(ant, "fileset", FileCollection.AntType.FileSet)
+	}
+
+}
+compileJava.dependsOn genJastAdd

@@ -1,0 +1,77 @@
+// this model merges petrinet paradigm with cardozo contexts
+// for this we implement hierarchy inside MacroTransition which consist of one page
+// and connect context with Page to allow enabling/disabling them dynamically
+
+
+/*
+on hierarchy:
+https://westergaard.eu/wp-content/papercite-data/pdf/cpncourse.pdf
+	A transition is replaced by a net with in-place and out-place
+PNML
+	A page is accessed via reference places and reference transitions
+	This means the parent net contains a reference node which then links
+	to a reference node of the same kind in the subnet
+	e.g. the refinement of a place in the parent node
+Gomes Barros 2005  strucutring and composability issues in Petri nets
+	Macro-places/transitions/blocks
+		semantic can only be gained by flattening
+	dynamic subnets
+		valks reference nets
+		or object nets
+		both are based on petri nets inside tokens
+
+My implementation semantic should be the same without flattening:
+	- only implemented for transitions:
+
+	- tokens must be consumed when a MacroTransition fires (semantic of state change)
+	- a subnet has a starting place and ending place
+	- the MacroTransition only produces tokens when all active subnets have a token in their ending place
+		and no token in their starting place
+	- when no subnet is active, a MacroTransition behaves like a normal Transition
+
+	A Transition can be a MacroTransition and have pages
+	A MacroTransition does have a changed firing semantic
+		It does not fire immediately or even not at all
+		It only fires when all pages have a token in ending place (AND semnatic)
+			(should we have more semantics?)
+
+*/
+
+// a Page can be connected with 1 context, which will define whether it is active or not
+// a Page can be connected to a Place, which will define whether it is active or not
+
+
+// this is specific for dynamic pages
+package dyn {
+	edge class pagearc
+		connect Place[0:1] --> Page[0:1];
+
+	edge class enablepage extends pagearc;
+	edge class disablepage extends pagearc;
+}
+
+// this is specific for hierarchical petri nets
+// i separate macro-transition and macro-place also their places.. this improves typechecking
+// generally we have MacroNode -:subpage-> :Page;
+// :Page -:start-> :Place;
+// :Page -:end-> :Place;
+package macro {
+node class PageFromTransition extends Page;
+node class PageFromPlace extends Page;
+
+directed edge class entrynode
+	connect PageFromPlace[+] --> Place[0:1],
+			PageFromTransition[+] --> Transition[0:1];
+
+directed edge class exitnode
+	connect PageFromPlace[+] --> Place[0:1],
+			PageFromTransition[+] --> Transition[0:1];
+
+node class MacroNode;
+node class MacroTransition extends TransitionNode, MacroNode;
+node class MacroPlace extends PlaceNode, MacroNode;
+
+directed edge class subpage
+	connect MacroTransition --> PageFromTransition[0:1],
+		MacroPlace --> PageFromPlace[0:1];
+}

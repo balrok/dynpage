@@ -1,0 +1,11 @@
+directed edge class substitutePlaces
+	connect PlaceNode[*] --> PlaceNode[0:1] {
+		num:int = 0;
+	}
+
+directed edge class maxBound
+	connect PlaceNode[0:1] --> Bound[0:1];
+
+node class Bound {
+	num:int = 1;
+}

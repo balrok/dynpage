@@ -1,0 +1,91 @@
+aspect Pretty {
+	public void NetFile.prettyPrint(StringBuilder b) {
+		for (Desc d : getDescs()) {
+			if (d instanceof Transition) {
+				d.prettyPrint(b);
+			}
+		}
+		for (Desc d : getDescs()) {
+			if (d instanceof Place) {
+				d.prettyPrint(b);
+			}
+		}
+	}
+
+	public void Desc.prettyPrint(StringBuilder b) {}
+
+	public void NetDesc.prettyPrint(StringBuilder b) {
+		b.append("nd ");
+		b.append(getName());
+		b.append("\n");
+	}
+
+	public void Transition.prettyPrint(StringBuilder b) {
+		b.append("tr ");
+		b.append(getName());
+		for (InPlace n : getInPlaces()) {
+			b.append(" ");
+			n.prettyPrint(b);
+		}
+		if (hasInPlace() || hasOutPlace()) {
+			b.append(" -> ");
+		}
+		for (OutPlace n : getOutPlaces()) {
+			n.prettyPrint(b);
+		}
+		b.append("\n");
+	}
+
+	public void Place.prettyPrint(StringBuilder b) {
+		b.append("pl ");
+		b.append(getName());
+		if (getMarking() != 0) {
+			b.append("(");
+			b.append(getMarking());
+			b.append(")");
+		}
+		for (InTransition n : getInTransitions()) {
+			b.append(" ");
+			n.prettyPrint(b);
+		}
+		if (hasInTransition() || hasOutTransition()) {
+			b.append(" -> ");
+		}
+		for (OutTransition n : getOutTransitions()) {
+			b.append(" ");
+			n.prettyPrint(b);
+		}
+		b.append("\n");
+	}
+
+	public void InPlace.prettyPrint(StringBuilder b) {
+		b.append(getName());
+		if (getArcType() != null) getArcType().prettyPrint(b);
+	}
+	public void OutPlace.prettyPrint(StringBuilder b) {
+		b.append(getName());
+		if (getArcType() != null) getArcType().prettyPrint(b);
+	}
+	public void InTransition.prettyPrint(StringBuilder b) {
+		b.append(getName());
+		if (getArcType() != null) getArcType().prettyPrint(b);
+	}
+	public void OutTransition.prettyPrint(StringBuilder b) {
+		b.append(getName());
+		if (getArcType() != null) getArcType().prettyPrint(b);
+	}
+
+	public void Arc.prettyPrint(StringBuilder b) {
+		b.append("unknown_arc");
+	}
+	public void NormalArc.prettyPrint(StringBuilder b) {
+		if (getWeight() != null) {
+			b.append("*");
+			b.append(getWeight());
+		}
+	}
+	public void InhibitorArc.prettyPrint(StringBuilder b) {
+		b.append("?-");
+		b.append(getWeight());
+	}
+}

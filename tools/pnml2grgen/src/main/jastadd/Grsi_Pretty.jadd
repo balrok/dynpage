@@ -1,0 +1,79 @@
+aspect Pretty {
+	public void GrFile.prettyPrint(StringBuilder b) {
+		for (Expr e : getExprs()) {
+			e.prettyPrint(b);
+		}
+	}
+
+	public void Expr.prettyPrint(StringBuilder b) {}
+
+	public void Graph.prettyPrint(StringBuilder b) {
+		b.append("new graph");
+		if (getRuleFile() != null) {
+			b.append(" ");
+			b.append(getRuleFile());
+		}
+		if (getName() != null) {
+			b.append(" ");
+			b.append(getName());
+		}
+		b.append("\n");
+	}
+
+	public void Arc.prettyPrint(StringBuilder b) {
+		b.append("new ");
+		b.append(getFrom());
+		b.append(" -");
+		super.prettyPrint(b);
+		b.append(" -");
+		if (getIsDirected())
+			b.append(">");
+		b.append(" ");
+		b.append(getTo());
+		b.append("\n");
+	}
+
+
+	public void Comment.prettyPrint(StringBuilder b) {
+		b.append("# ");
+		b.append(getText());
+		b.append("\n");
+	}
+
+
+	public void Element.prettyPrint(StringBuilder b) {
+		boolean firstParameter = true;
+		if (getName() != null) {
+			b.append(getName());
+		}
+		b.append(":");
+		b.append(getType());
+
+		if (hasParameter()) {
+			for (Parameter p : getParameters()) {
+				if (firstParameter) {
+					b.append("(");
+					firstParameter = false;
+				} else {
+					b.append(", ");
+				}
+				p.prettyPrint(b);
+			}
+		}
+		if (!firstParameter) {
+			b.append(")");
+		}
+	}
+
+	public void Parameter.prettyPrint(StringBuilder b) {
+		b.append(getKey());
+		b.append(" = ");
+		b.append(getValue());
+	}
+
+	public void Node.prettyPrint(StringBuilder b) {
+		b.append("new ");
+		super.prettyPrint(b);
+		b.append("\n");
+	}
+}

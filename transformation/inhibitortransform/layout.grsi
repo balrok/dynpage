@@ -1,0 +1,2 @@
+dump add node Bound infotag "num"
+dump add node PlaceNode group by hidden outgoing maxBound

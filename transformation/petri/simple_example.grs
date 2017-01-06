@@ -1,0 +1,43 @@
+# This is a simple Petrinet
+
+new graph "Rules.grg"
+
+include layout.grsi
+
+
+new pn:PetriNet(id="Petri Net")
+new net:Page(id="pn1")
+new pn -:pages-> net
+
+new p1:Place(id="p1")
+new net -:places-> p1
+new to1:Token()
+new p1 -:tokens-> to1
+new p2:Place(id="p2")
+new net -:places-> p2
+new p3:Place(id="p3")
+new net -:places-> p3
+new p4:Place(id="p4")
+new net -:places-> p4
+
+new t1:Transition(id="t1")
+new net -:transitions-> t1
+new t2:Transition(id="t2")
+new net -:transitions-> t2
+new t3:Transition(id="t3")
+new net -:transitions-> t3
+new t4:Transition(id="t4")
+new net -:transitions-> t4
+
+new t1 -:inArc()-> p1
+new p1 -:outArc()-> t2
+new t2 -:inArc()-> p2
+new p2 -:outArc()-> t3
+new t3 -:inArc()-> p3
+new p3 -:outArc()-> t4
+new t4 -:inArc()-> p4
+new p4 -:outArc()-> t1
+
+validate
+
+show graph ycomp

@@ -1,0 +1,10 @@
+GrFile ::= Expr*;
+abstract Expr;
+Graph : Expr ::= <RuleFile:String> <Name:String>;
+
+abstract Element : Expr ::= <Type:String> <Name:String> Parameter*;
+Arc : Element ::= <From:String> <To:String> <IsDirected:Boolean>;
+Node : Element;
+
+Parameter ::= <Key:String> <Value:String>;
+Comment : Expr ::= <Text:String>;

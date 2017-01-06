@@ -1,0 +1,65 @@
+aspect ArcName {
+// Name resolution getFromNode, getToNode
+	syn lazy Node Arc.getFromNode() {
+		return getNode(this.getFrom());
+	}
+	syn lazy Node Arc.getToNode() {
+		return getNode(this.getTo());
+	}
+
+	inh Node Arc.getNode(String id);
+
+	eq GrFile.getExpr(int i).getNode(String id) {
+		for (Expr child : this.getExprs()) {
+			if (child.getNodeLocal(id) != null) {
+				return child.getNodeLocal(id);
+			}
+		}
+		return null;
+	}
+
+	syn Node Expr.getNodeLocal(String id) = null;
+	syn Node Node.getNodeLocal(String id) {
+		if (this.getName().equals(id)) {
+			return this;
+		}
+		Parameter p = getParameterByKey("$");
+		if (p != null) {
+			if (p.getValue().equals(id) || ("@("+p.getValue()+")").equals(id)) {
+				return this;
+			}
+		}
+		return null;
+	}
+
+// inArcs,outArcs
+	syn List<Arc> Node.getOutArcs() {
+		return getArcsByType(this, 1);
+	}
+	syn List<Arc> Node.getInArcs() {
+		return getArcsByType(this, 2);
+	}
+
+	inh List<Arc> Node.getArcsByType(Node n, int type);
+
+	eq GrFile.getExpr(int i).getArcsByType(Node n, int type) {
+		List<Arc> l = new List<Arc>();
+		for (Expr child : this.getExprs()) {
+			if (child.isArcType(n, type)) {
+				l.add((Arc)child);
+			}
+		}
+		return l;
+	}
+
+	syn Boolean Expr.isArcType(Node n, int type) = false;
+	syn Boolean Arc.isArcType(Node n, int type) {
+		this.getToNode(); // this needs to be here - don't know where the bug is?
+		if (type == 1)
+			return (this.getFromNode() != null && this.getFromNode().equals(n));
+		if (type == 2)
+			return (this.getToNode() != null && this.getToNode().equals(n));
+		assert(false);
+		return null;
+	}
+}

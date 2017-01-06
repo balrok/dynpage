@@ -1,0 +1,2 @@
+#dump set node macro::MacroTransition color lightgrey
+#dump add node macro::MacroTransition group by hidden outgoing macro::subpage

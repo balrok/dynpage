@@ -1,0 +1,54 @@
+# This is a simple Petrinet where a related transition is connected with an in and out-arc
+# TODO also test 2 arcs out, 1 arc in etc.
+
+new graph "Rules.grg"
+
+include ../petri/layout.grsi
+include layout.grsi
+
+
+new pn:PetriNet($= "test", id="Petri Net")
+new net:Page(id="pn1")
+new pn -:pages-> net
+
+new p1:Place(id="a")
+new net -:places-> p1
+new p2:Place(id="b")
+new net -:places-> p2
+new p3:Place(id="c")
+new net -:places-> p3
+
+new t1:Transition(id="t")
+new net -:transitions-> t1
+new t2:Transition(id="u")
+new net -:transitions-> t2
+new t4:Transition(id="w")
+new net -:transitions-> t4
+
+
+new p1 -oa1:outArc(id="oa1")-> t1
+new t1 -:inArc-> p3
+new p2 -oa2:outArc(id="oa2")-> t2
+
+new p3 -inh1:inhibitorArc(id="inh1")-> t2
+
+new p3 -:outArc(id="twoway_out")-> t4
+new t4 -:inArc(id="twoway_in")-> p3
+
+
+new tok1:Token
+new tok2:Token
+new tok3:Token
+new tok4:Token
+
+new p1 -:tokens-> tok1
+new p1 -:tokens-> tok2
+new p1 -:tokens-> tok3
+new p2 -:tokens-> tok4
+
+
+validate
+
+
+exec TransformMultiArcsToWeight()*
+debug exec Init(2) | ToPTNet()*

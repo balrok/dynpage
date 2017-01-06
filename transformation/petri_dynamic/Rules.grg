@@ -1,0 +1,6 @@
+#using "../petri/PetriModel.gm"
+//#using "Model.gm"
+#using "DynModel.gm"
+
+#include "../petri/Rules.grg"
+#include "../petri_dynamic/RulesWithoutModel.grg"

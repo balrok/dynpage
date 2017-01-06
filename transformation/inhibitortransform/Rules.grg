@@ -1,0 +1,5 @@
+#using "../petri/PetriModel.gm"
+#using "../inhibitortransform/InhibitorTransformModel.gm"
+
+#include "../petri/Rules.grg"
+#include "../inhibitortransform/RulesWithoutModel.grg"

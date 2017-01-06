@@ -1,0 +1,298 @@
+rule print(var s:string) {
+	modify {
+		emit(s);
+	}
+}
+rule println(var s:string) {
+	modify {
+		emit(s+"\n");
+	}
+}
+
+rule printn(n:Node) {
+	modify {
+		emit(n,"\n");
+	}
+}
+
+rule delete_node(p:Node) {
+	replace{}
+}
+
+rule delete_edge(?-e:AEdge-?) {
+	replace{}
+}
+
+
+function unequalContainedSubgraphs(start1:Node, start2:Node):boolean {
+	def ref adj:set<Node> = adjacentOutgoing(start1, Edge); //adj=={s1x,s2x}
+	def var sub1:graph = inducedSubgraph(adj); // sub1==graph(s1x’ -->’ s1y’) -- does not contain s1x,s1y themselves!
+
+	def var sub2:graph = inducedSubgraph(adjacentOutgoing(start2, Edge));
+
+	def var res:boolean = sub1 == sub2;
+
+	return(res); // remark: the original graph is untouched
+}
+
+rule checkSame(a:Node, b:Node) {
+	if { !unequalContainedSubgraphs(a, b); }
+	modify {
+		emit("ERROR are not the same!\n");
+		emit("ERROR are not the same!\n");
+		emit("ERROR are not the same!\n");
+		emit("ERROR are not the same!\n");
+		emit("ERROR are not the same!\n");
+	}
+}
+
+rule valloc() : (int) {
+	modify {
+		def var ret:int;
+		eval {
+			(yield ret) = valloc();
+		}
+		return(ret);
+	}
+}
+
+rule removeInArcs(p:Node) {
+	iterated {
+		-e:Edge-> p;
+		modify { delete(e); }
+	}
+}
+rule removeOutArcs(p:Node) {
+	iterated {
+		<-e:Edge- p;
+		modify { delete(e); }
+	}
+}
+rule removeInArcsExclude(p:Node, exclude:Node) {
+	iterated {
+		other:Node -e:Edge-> p;
+		negative { if { other == exclude ;} }
+		modify { delete(e); }
+	}
+}
+rule removeOutArcsExclude(p:Node, exclude:Node) {
+	iterated {
+		other:Node <-e:Edge- p;
+		negative { if { other == exclude ;} }
+		modify { delete(e); }
+	}
+}
+
+rule copyInArcs(from:Node, to:Node) {
+	iterated {
+		// iterate over all inarc and outarc connections
+		other:Node -e:Edge-> from;
+		modify { other-:copy<e>-> to; }
+	}
+	modify {}
+}
+rule copyOutArcs(from:Node, to:Node) {
+	iterated {
+		// iterate over all inarc and outarc connections
+		other:Node <-e:Edge- from;
+		modify { other <-:copy<e>- to; }
+	}
+	modify {}
+}
+
+rule copyArcs(from:Node, to:Node) {
+	iterated {
+		// iterate over all inarc and outarc connections
+		alternative {
+			inarc {
+				other:Node -e:Edge-> from;
+				modify {
+					other-:copy<e>-> to;
+				}
+			}
+			outarc {
+				other:Node <-e:Edge- from;
+				modify {
+					other <-:copy<e>- to;
+				}
+			}
+			// TODO transform undirected edges
+		}
+		modify {}
+	}
+	modify {}
+}
+
+
+rule copyOutArcsExclude(from:Node, to:Node, exclude:Node)  {
+	iterated {
+		// iterate over all other nodes
+		other:Node;
+		negative { if { other == exclude ;} }
+		iterated {
+			other <-oe:Edge- from;
+			modify { other <-:copy<oe>- to; }
+		}
+		modify {}
+	}
+	modify {}
+}
+
+rule copyInArcsExclude(from:Node, to:Node, exclude:Node)  {
+	iterated {
+		// iterate over all other nodes
+		other:Node;
+		negative { if { other == exclude ;} }
+		iterated {
+			other -e:Edge-> from;
+			modify { other -:copy<e>-> to; }
+		}
+		modify {}
+	}
+	modify {}
+}
+
+
+
+rule copyArcsExclude(from:Node, to:Node, exclude:Node)  {
+	iterated {
+		// iterate over all other nodes
+		other:Node;
+		negative { if { other == exclude ;} }
+		iterated {
+			// iterate over all inarc and outarc connections
+			alternative {
+				inarc {
+					other -e:Edge-> from;
+					modify {
+						// emit("copy inarc ",from," ",other,"\n");
+						other -:copy<e>-> to;
+					}
+				}
+				outarc {
+					other <-oe:Edge- from;
+					modify {
+						// emit("copy outarc ",from," ",other,"\n");
+						other <-:copy<oe>- to;
+					}
+				}
+			}
+			modify {}
+		}
+		modify {}
+	}
+	modify {}
+}
+rule copyArcsInclude(from:Node, to:Node, include:Node)  {
+	iterated {
+		// iterate over all inarc and outarc connections
+		alternative {
+			inarc {
+				include -e:Edge-> from;
+				modify {
+					// emit("copy inarc ",from," ",other,"\n");
+					include -:copy<e>-> to;
+				}
+			}
+			outarc {
+				include <-oe:Edge- from;
+				modify {
+					// emit("copy outarc ",from," ",other,"\n");
+					include <-:copy<oe>- to;
+				}
+			}
+		}
+		modify {}
+	}
+	modify {}
+}
+
+rule isSmaller(var a:int, var b:int) {
+	if { a < b; }
+}
+rule isEqual(var a:int, var b:int) {
+	if { a == b; }
+}
+rule isNotEmpty(var a:string) {
+	if { a != ""; }
+}
+rule isNodeUnEqual(a:NIdent, b:NIdent) {
+	if { a != b; }
+	modify {
+		emit("isUnEqual ",a.id," ",b.id,"\n");
+	}
+}
+rule noop() {}
+
+rule retNumber(var a:int) : (int) {
+	modify { return(a); }
+}
+
+
+rule copySubgraph(root:Node, ref oldToNew:map<Node, Node>) : (Node) {
+	cs:CopySubgraph(root, oldToNew);
+	modify {
+		cs();
+		return(oldToNew[root]);
+	}
+}
+
+pattern CopySubgraph(root:Node, ref oldToNew:map<Node, Node>) {
+	iterated { // match spanning tree of graph from root on
+		root --> ch:Node;
+		cs:CopySubgraph(ch, oldToNew);
+		modify {
+			cs();
+		}
+	}
+	modify {
+		newroot:copy<root>; // copy nodes
+		emit("copied ",root,"\n");
+		eval { oldToNew.add(root, newroot); }
+		exec( [CopyOutgoingEdge(root, oldToNew)] ); // deferred copy edges
+	}
+}
+
+rule CopyOutgoingEdge(n:Node, ref oldToNew:map<Node, Node>) {
+	n -e:Edge-> m:Node;
+	hom(n,m); // reflexive edges
+	nn:Node{oldToNew[n]};
+	nm:Node{oldToNew[m]};
+	hom(nn,nm); // reflexive edges
+	modify {
+		nn -ee:copy<e>-> nm;
+	}
+}
+
+
+
+
+rule deleteSubgraph(root:Node) {
+	ds:DeleteSubgraph(root);
+	modify {
+		ds();
+	}
+}
+pattern DeleteSubgraph(root:Node) {
+	iterated { // match spanning tree of graph from root on
+		root --> ch:Node;
+		ds:DeleteSubgraph(ch);
+		modify {
+			ds();
+		}
+	}
+	modify {
+		delete(root);
+	}
+}
+
+rule id_replace_all(var search:string, var repl:string) {
+	n:NIdent;
+	modify { exec(id_replace(n, search, repl)); }
+}
+rule id_replace(n:NIdent, var search:string, var repl:string) {
+	if {n.id.indexOf(search) != -1; }
+	modify {
+		eval {n.id = n.id.asArray(search).asString(repl); }
+	}
+}

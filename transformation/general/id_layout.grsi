@@ -1,0 +1,2 @@
+dump add node NIdent infotag id 
+#dump add edge EIdent infotag id 

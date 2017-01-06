@@ -1,0 +1,6 @@
+abstract node class NIdent {
+	id: string = "";
+}
+abstract edge class EIdent {
+	id: string = "";
+}

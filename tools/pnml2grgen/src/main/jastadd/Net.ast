@@ -1,0 +1,22 @@
+NetFile ::= Desc*;
+abstract Desc;
+NetDesc : Desc ::= <Name:String>;
+
+abstract Node : Desc ::= <Name:String>;
+abstract NodeLabeled : Node ::= <Label:String>;
+Transition : NodeLabeled ::= <Interval:String> InPlace* OutPlace*;
+Place : NodeLabeled ::= <Marking:Integer> InTransition* OutTransition*;
+
+InPlace : Node ::= ArcType:Arc;
+OutPlace : Node ::= ArcType:NormalArc;
+InTransition : Node ::= ArcType:NormalArc;
+OutTransition : Node ::= ArcType:Arc;
+
+abstract Arc ::= <Weight:String>;
+NormalArc : Arc;
+InhibitorArc : Arc;
+StopwatchArc : Arc;
+StopwatchInhibitorArc : Arc;
+TestArc : Arc;
+
+Comment : Desc::= <Text:String>;

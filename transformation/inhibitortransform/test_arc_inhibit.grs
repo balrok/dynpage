@@ -1,0 +1,23 @@
+# begin of graph "DefaultGraph" saved by GrsExport
+
+new graph "Rules" "DefaultGraph"
+include ../petri/layout.grsi
+
+new :PetriNet($ = "$3_2_9", id = "")
+new :Page($ = "Context_Net", id = "Context_Net")
+new :Place($ = "PRN.Cappuccino", id = "PRN.Cappuccino")
+new :Transition($ = "deacSS.Cappuccino", id = "deacSS.Cappuccino")
+# total number of nodes: 5
+
+new @("$3_2_9") - :pages($ = "$3_2_B") -> @("Context_Net")
+new @("Context_Net") - :transitions($ = "$3_2_36") -> @("deacSS.Cappuccino")
+new @("Context_Net") - :places($ = "$3_2_87") -> @("PRN.Cappuccino")
+new @("PRN.Cappuccino") - :inhibitorArc($ = "$3_2_3A", id = "") -> @("deacSS.Cappuccino")
+new @("deacSS.Cappuccino") - :inArc($ = "$3_2_39", id = "") -> @("PRN.Cappuccino")
+# total number of edges: 6
+
+# end of graph "DefaultGraph" saved by GrsExport
+
+exec TransformMultiArcsToWeight()*
+exec [InfoInhibitors()] | Init(2)
+debug exec ToPTNet()* | [InfoInhibitors()] | CheckError()

@@ -1,0 +1,213 @@
+rule Init(var bound:int) {
+	iterated {
+		p:PlaceNode -:inhibitorArc->;
+		negative {
+			p -:maxBound-> :Bound;
+		}
+		modify {
+			def var numTokens:int = 1;
+			// TODO use AddBound
+			// def var maxOutArcs:int = 1;
+			b:Bound;
+			eval {
+				yield numTokens = countBoundedReachable(p, 1, tokens, Token);
+				// for (n:Node in boundedReachableOutgoing(p, 1, outArc, TransitionNode)) {
+				// 	//resOut.add((TransitionNode)n);
+				// 	countBoundedReachable(p, 1, outArc tran);
+				// }
+				if (bound > numTokens) {
+					b.num = bound;
+				} else {
+					b.num = numTokens;
+				}
+			}
+			p -:maxBound-> b;
+			emit("Added bound to ",p.id,"\n");
+		}
+	}
+	modify { }
+}
+
+rule AddBound(p:PlaceNode, var bound:int) {
+	modify {
+		b:Bound;
+		p -:maxBound-> b;
+		eval {
+			b.num = bound;
+		}
+	}
+}
+
+rule ToPTNet() {
+	p:PlaceNode -:maxBound-> b:Bound;
+	alternative {
+		withinhibitor {
+			p -:inhibitorArc->;
+			modify {
+				exec (
+					CheckOKNet() // removes dead transitions
+					| (bound:int) = retNumber(b.num)
+					| for{z:int in [0:bound]; AddSubstitutionPlace(p, z)}
+					| (n:int) = countTokens(p)
+					| ((sp:Place) = getSubstitutionPlace(p, n)
+						&& AddToken(sp))
+					| ReplaceInhibitors(p)* // replace all inhibitor arcs from this place
+					| SplitTransitions(p, b.num)* // split transitions up and connect them to substitution places
+					| DeleteToken(p)* // remove all tokens
+					| delete_node(p) // remove the original place
+					| delete_node(b) // remove the original bound
+				);
+			}
+		}
+		withoutinhibitor {
+			negative {
+				p -:inhibitorArc->;
+			}
+			modify {
+				delete(b);
+			}
+		}
+	}
+}
+
+// connects p0 with the inhibiting transition
+// the transitions connects to pi where i is the weight of an inArc
+// TODO weighted inhibitor arc - requires splitting of this transition
+rule ReplaceInhibitors(p:PlaceNode) {
+	p -inh:inhibitorArc-> t:TransitionNode;
+	p -sp0:substitutePlaces-> p0:PlaceNode;
+	if ( sp0.num == 0 );
+	optional {
+		t -i:inArc-> p;
+		modify {
+			eval { yield ia = i.weight; }
+			delete(i);
+		}
+	}
+	modify {
+		def var ia:int = 0;
+		p0 -:outArc-> t;
+		exec(
+			(sp:Place) = getSubstitutionPlace(p, ia)
+			&& ConnectInArc(sp, t)
+		);
+		emithere("Remove inhibitorArc ",inh," between ",p.id," and ",t.id,"\n");
+		delete(inh);
+	}
+}
+
+rule SplitTransitions(p:PlaceNode, var bound:int) {
+	t:TransitionNode;
+	alternative {
+		inout {
+			p -o:outArc-> t -i:inArc-> p;
+			modify { eval { yield type = "inout"; yield ia = i.weight; yield oa = o.weight; } }
+		}
+		out_t {
+			p -o:outArc-> t;
+			negative { t -:inArc-> p; }
+			modify { eval { yield type = "out"; yield oa = o.weight; } }
+		}
+		in_t {
+			t -i:inArc-> p;
+			negative { p -:outArc-> t; }
+			modify { eval { yield type = "in"; yield ia = i.weight; } }
+		}
+	}
+	modify {
+		def var ia:int = 0;
+		def var oa:int = 0;
+		def var type:string = "";
+		emit("reconnect ",type," ",t.id,"\n");
+		exec(ConnectTransitions(p, t, ia, oa, bound)
+			| delete_node(t)
+		);
+	}
+}
+
+rule AddSubstitutionPlace(p:PlaceNode, var num:int) {
+	page:Page -:places-> p;
+	modify {
+		page -:places-> px:Place;
+		p -spx:substitutePlaces-> px;
+		eval {
+			px.id = p.id+"_"+num;
+			spx.num = num;
+		}
+		emit("Substitution place for ",p.id," -> ",px.id,"\n");
+	}
+}
+
+rule ConnectTransitions(p:PlaceNode, t:TransitionNode, var in_amount:int, var out_amount:int, var size:int) {
+	iterated {
+		p -spE:substitutePlaces-> pE:Place;
+		if (spE.num >= out_amount);
+		if (spE.num <= size);
+		modify {
+			tE:copy<t>;
+			exec(copyArcsExclude(t, tE, p));
+			pE -:outArc-> tE;
+
+			eval {
+				if (in_amount == out_amount) {
+					tE.id = t.id+"_inout_"+pE.id;
+				} else if (in_amount < out_amount) {
+					tE.id = t.id+"_out_"+pE.id;
+				} else if (in_amount > out_amount) {
+					tE.id = t.id+"_in_"+pE.id;
+					if (spE.num == size) {
+						tE.id = tE.id + "_MUST_BE_DEAD";
+					}
+				}
+			}
+			// when tE fires it removes from pE and produces somewhere tokens
+			exec(
+				(sp:Place) = getSubstitutionPlace(p, spE.num - out_amount + in_amount)
+				&& ConnectInArc(sp, tE)
+			);
+		}
+	}
+	modify {}
+}
+
+rule getSubstitutionPlace(p:PlaceNode, var num:int) : (Place) {
+	p -spE:substitutePlaces-> pE:Place;
+	if (spE.num == num);
+	modify {
+		return(pE);
+	}
+}
+
+rule InfoInhibitors() {
+	p:PlaceNode -:inhibitorArc-> t:TransitionNode;
+	modify {
+		emit("Place ",p.id," inhibits ",t.id,"\n");
+	}
+}
+
+rule CheckError() {
+	p:Place;
+	t:Transition;
+	if { p.id.endsWith("_0")
+		|| p.id.endsWith("_1")
+		|| p.id.endsWith("_2")
+		|| p.id.endsWith("_3")
+		; }
+	p -:outArc-> t;
+	p -:outArc-> t;
+	modify {
+		emit("ERROR place ",p.id," has two outArc to ",t.id,"\n");
+	}
+}
+
+// TODO make checks before transforming
+// alternative transform first - then give it a model checkter - then find if there were bugs
+// e.g. boundedness is always 3 and look if it can go lower or over 3 with a checker
+rule CheckOKNet() {
+	p:PlaceNode -:inhibitorArc-> t:TransitionNode;
+	p -:outArc-> t;
+	modify {
+		emithere("ERROR: the net makes no sense with place ",p.id," and transition ",t.id,"\n");
+		delete(t);
+	}
+}

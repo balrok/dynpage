@@ -1,0 +1,125 @@
+new graph "../allinone/Rules.grg"
+
+include ../petri/layout.grsi
+include layout.grsi
+
+new pn:PetriNet(id="Petri Net DFOP")
+
+new coffee:Page(id="coffee")
+new milk:macro::PageFromTransition(id="milk")
+new pn -:pages-> coffee
+new pn -:pages-> milk
+
+new wait:Place(id="wait")
+new ready:Place(id="ready")
+new full:Place(id="coffee full")
+new refillable:Place(id="coffee refillable")
+new mready:Place(id="milk ready")
+new mfull:Place(id="milk full")
+new mrefillable:Place(id="milk refillable")
+new mon:Place(id="milk on")
+new mof:Place(id="milk off")
+
+
+new  coffee-:places->wait
+new  coffee-:places->ready
+new  coffee-:places->full
+new  coffee-:places->refillable
+new  coffee-:places->mon
+new  coffee-:places->mof
+new  milk-:places->mready
+new  milk-:places->mfull
+new  milk-:places->mrefillable
+
+new serve:Transition(id="serve")
+new brew:Transition(id="brew coffee")
+new refill:Transition(id="refill coffee")
+new mmilk:macro::MacroTransition(id="milk-net")
+new mmilk-:macro::subpage->milk
+new mout:Transition(id="OUT")
+new milk-:macro::exitnode->mout
+new min:Transition(id="IN")
+new milk-:macro::entrynode->min
+new mrefill:Transition(id="refill milk")
+new mdisable:Transition(id="disable")
+new menable:Transition(id="enable")
+
+new  coffee-:transitions->serve
+new  coffee-:transitions->brew
+new  coffee-:transitions->refill
+new  coffee-:transitions->mmilk
+new  coffee-:transitions->mdisable
+new  coffee-:transitions->menable
+new  milk-:transitions->mout
+new  milk-:transitions->min
+new  milk-:transitions->mrefill
+
+
+new ready-:outArc->serve
+new ready-:outArc->mmilk
+new wait-:outArc->brew
+new full-:outArc->brew
+new refillable-:outArc->refill
+new serve-:inArc->wait
+new brew-:inArc->ready
+new brew-:inArc->refillable
+new refill-:inArc->full
+
+new mmilk-:inArc->wait
+new menable-:inArc->mon
+new menable-:inArc->wait
+new mdisable-:inArc->wait
+
+new mon -:outArc->mdisable
+new wait-:outArc->menable
+new wait-:outArc->mdisable
+
+new mof -:outArc->menable
+new mdisable -:inArc-> mof
+
+new tok:Token
+new mon-:tokens->tok
+
+
+
+new mready -:outArc-> mout
+new min -:inArc-> mready
+new mfull -:outArc-> min
+new mrefillable -:outArc-> mrefill
+new min -:inArc-> mrefillable
+new mrefill -:inArc-> mfull
+
+new mon-:dyn::enablepage-> milk
+
+new tok1:Token
+new tok2:Token
+new tok3:Token
+new ready-:tokens->tok1
+new full-:tokens->tok2
+new mfull-:tokens->tok3
+
+
+
+validate exitonfailure strict only specified
+export paper_orig.grsi
+exec pdFlatten(::pn)
+export paper_flati.grsi
+validate exitonfailure strict only specified
+
+
+exec TransformMultiArcsToWeight()*
+exec Init(1)
+exec ToPTNet()* | [InfoInhibitors()] | CheckError()
+validate exitonfailure strict only specified
+
+
+# for lola
+exec [id_replace_all(":", "_")]
+exec [id_replace_all(" ", "_")]
+exec [id_replace_all("[", "_")]
+exec [id_replace_all("]", "_")]
+
+export paper_flat.grsi
+show graph ycomp
+exit
+

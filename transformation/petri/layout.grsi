@@ -1,0 +1,30 @@
+include ../general/id_layout.grsi
+
+debug set layout Hierarchic
+dump set node Place shape circle
+
+dump set node Place color white
+dump set node Place labels off
+dump add node Place group by hidden outgoing tokens
+
+dump set node Transition color grey
+dump set node Transition labels off
+
+dump set node Token shape circle
+dump set node Token color black
+dump set node Token labels off
+
+dump set edge inhibitorArc color red
+dump set edge inhibitorArc labels off
+dump set edge inArc labels off
+dump set edge outArc labels off
+#dump add edge Arc infotag weight
+
+dump set node PetriNet color lightgrey
+dump add node PetriNet group by hidden outgoing pages
+dump add node Page group by hidden outgoing pages
+
+dump set node Page color white
+dump add node Page group by hidden outgoing places
+dump add node Page group by hidden outgoing transitions
+dump set node PetriNet labels off
